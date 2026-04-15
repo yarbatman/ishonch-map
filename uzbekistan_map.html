@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Uzbekistan Schools Map — ISHONCH</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -13,24 +13,27 @@
       width: 100%;
       height: 100%;
       font-family: 'Georgia', serif;
+      /* Prevent iOS bounce scroll interfering with the map */
+      overflow: hidden;
+      position: fixed;
     }
 
-    /* ISHONCH palette */
     :root {
-      --teal:        #1e6b72;
-      --teal-dark:   #134e54;
-      --teal-light:  #e8f4f5;
-      --white:       #ffffff;
-      --text-muted:  #6b8e92;
-      --border:      rgba(30, 107, 114, 0.25);
+      --teal:       #1e6b72;
+      --teal-dark:  #134e54;
+      --teal-light: #e8f4f5;
+      --white:      #ffffff;
+      --text-muted: #6b8e92;
+      --border:     rgba(30, 107, 114, 0.25);
     }
 
     #map-wrapper {
       position: relative;
       width: 100%;
       height: 100%;
-      min-height: 500px;
       background: var(--teal-light);
+      /* Let touch events pass through to Leaflet */
+      touch-action: none;
     }
 
     #map {
@@ -38,48 +41,7 @@
       height: 100%;
     }
 
-    /* Top-left label */
-    #map-label {
-      position: absolute;
-      top: 14px;
-      left: 14px;
-      z-index: 1000;
-      background: var(--white);
-      color: var(--teal-dark);
-      padding: 9px 14px;
-      border-left: 3px solid var(--teal);
-      letter-spacing: 0.16em;
-      font-size: 11px;
-      text-transform: uppercase;
-      pointer-events: none;
-      box-shadow: 0 2px 8px rgba(30,107,114,0.12);
-    }
-
-    #map-label span {
-      display: block;
-      color: var(--text-muted);
-      font-size: 9px;
-      letter-spacing: 0.1em;
-      margin-top: 3px;
-    }
-
-    /* Bottom-left badge */
-    #point-count {
-      position: absolute;
-      bottom: 30px;
-      left: 14px;
-      z-index: 1000;
-      background: var(--white);
-      color: var(--teal);
-      padding: 6px 12px;
-      font-size: 10px;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      box-shadow: 0 2px 8px rgba(30,107,114,0.12);
-      pointer-events: none;
-    }
-
-    /* Marker dot */
+    /* ── Marker ── */
     .custom-marker {
       width: 11px;
       height: 11px;
@@ -91,12 +53,21 @@
       transition: transform 0.15s ease, background 0.15s ease;
     }
 
-    .custom-marker:hover {
+    /* Bigger tap target on mobile */
+    @media (max-width: 768px) {
+      .custom-marker {
+        width: 14px;
+        height: 14px;
+      }
+    }
+
+    .custom-marker:hover,
+    .custom-marker:active {
       transform: scale(1.55);
       background: var(--teal-dark);
     }
 
-    /* Tooltip */
+    /* ── Tooltip ── */
     .leaflet-tooltip {
       background: var(--white) !important;
       border: 1px solid var(--border) !important;
@@ -105,17 +76,11 @@
       padding: 9px 13px !important;
       color: var(--teal-dark) !important;
       font-family: 'Georgia', serif !important;
-      font-size: 12px !important;
       white-space: nowrap !important;
     }
 
-    /* Arrow pointing right */
-    .leaflet-tooltip-right::before {
-      border-right-color: var(--border) !important;
-    }
-    .leaflet-tooltip-left::before {
-      border-left-color: var(--border) !important;
-    }
+    .leaflet-tooltip-right::before { border-right-color: var(--border) !important; }
+    .leaflet-tooltip-left::before  { border-left-color:  var(--border) !important; }
 
     .tooltip-school {
       font-size: 13px;
@@ -139,7 +104,13 @@
       font-style: italic;
     }
 
-    /* Zoom control */
+    /* Hide coords on small screens to keep tooltip compact */
+    @media (max-width: 768px) {
+      .tooltip-coords { display: none; }
+      .tooltip-school { font-size: 12px; }
+    }
+
+    /* ── Zoom controls ── */
     .leaflet-control-zoom a {
       background: var(--white) !important;
       color: var(--teal) !important;
@@ -152,25 +123,28 @@
       color: var(--teal-dark) !important;
     }
 
-    /* Attribution */
+    /* Larger zoom buttons on mobile */
+    @media (max-width: 768px) {
+      .leaflet-control-zoom a {
+        width: 36px !important;
+        height: 36px !important;
+        line-height: 36px !important;
+        font-size: 18px !important;
+      }
+    }
+
+    /* ── Attribution ── */
     .leaflet-control-attribution {
       background: rgba(255,255,255,0.75) !important;
       color: #9bb5b8 !important;
       font-size: 9px;
     }
 
-    .leaflet-control-attribution a {
-      color: var(--teal) !important;
-    }
+    .leaflet-control-attribution a { color: var(--teal) !important; }
   </style>
 </head>
 <body>
   <div id="map-wrapper">
-    <div id="map-label">
-      Uzbekistan
-      <span>Schools GPS Locations</span>
-    </div>
-    <div id="point-count">50 locations</div>
     <div id="map"></div>
   </div>
 
@@ -228,23 +202,34 @@
       { city: "Uchtepa district",     school: "School No. 287", lat: 41.277434, lng: 69.166148 },
     ];
 
-    // Uzbekistan bounding box — prevents zooming out past the country
+    const isMobile = window.innerWidth <= 768;
+
     const uzbekBounds = L.latLngBounds(
-      L.latLng(37.0, 56.0),   // SW corner
-      L.latLng(45.5, 73.5)    // NE corner
+      L.latLng(37.0, 56.0),
+      L.latLng(45.5, 73.5)
     );
 
     const map = L.map('map', {
       center: [41.3, 64.5],
-      zoom: 6,
-      minZoom: 5,
+      zoom: isMobile ? 5 : 6,
+      minZoom: isMobile ? 4 : 5,
       maxZoom: 13,
       maxBounds: uzbekBounds,
-      maxBoundsViscosity: 1.0,   // hard stop at border
+      maxBoundsViscosity: 1.0,
       zoomControl: true,
+      // Mobile touch handling
+      tap: true,
+      tapTolerance: 15,
+      touchZoom: true,
+      bounceAtZoomLimits: false,
+      // Disable scroll-wheel zoom so the map doesn't hijack page scrolling
+      scrollWheelZoom: false,
     });
 
-    // Light tile layer (CartoDB Positron — clean, minimal)
+    // Re-enable scroll zoom only when the map is focused (clicked/tapped)
+    map.on('click', () => map.scrollWheelZoom.enable());
+    map.on('blur',  () => map.scrollWheelZoom.disable());
+
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
@@ -254,28 +239,43 @@
     const markerIcon = L.divIcon({
       className: '',
       html: '<div class="custom-marker"></div>',
-      iconSize: [11, 11],
-      iconAnchor: [5.5, 5.5],
-      tooltipAnchor: [8, 0],
+      iconSize: [isMobile ? 14 : 11, isMobile ? 14 : 11],
+      iconAnchor: [isMobile ? 7 : 5.5, isMobile ? 7 : 5.5],
+      tooltipAnchor: [10, 0],
     });
 
     locations.forEach(({ city, school, lat, lng }) => {
       const marker = L.marker([lat, lng], { icon: markerIcon }).addTo(map);
-      marker.bindTooltip(`
-        <div class="tooltip-school">${school}</div>
-        <div class="tooltip-city">${city}</div>
-        <div class="tooltip-coords">${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
-      `, {
-        direction: 'right',
-        permanent: false,
-        sticky: false,
-        opacity: 1,
-      });
+
+      if (isMobile) {
+        // On mobile, show tooltip on tap (click) as a popup-style interaction
+        marker.bindTooltip(`
+          <div class="tooltip-school">${school}</div>
+          <div class="tooltip-city">${city}</div>
+        `, {
+          direction: 'top',
+          permanent: false,
+          sticky: false,
+          opacity: 1,
+          offset: [0, -8],
+        });
+      } else {
+        // On desktop, show on hover
+        marker.bindTooltip(`
+          <div class="tooltip-school">${school}</div>
+          <div class="tooltip-city">${city}</div>
+          <div class="tooltip-coords">${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+        `, {
+          direction: 'right',
+          permanent: false,
+          sticky: false,
+          opacity: 1,
+        });
+      }
     });
 
-    // Fit to all markers on load
     const bounds = L.latLngBounds(locations.map(l => [l.lat, l.lng]));
-    map.fitBounds(bounds, { padding: [50, 50] });
+    map.fitBounds(bounds, { padding: isMobile ? [20, 20] : [50, 50] });
   </script>
 </body>
 </html>
