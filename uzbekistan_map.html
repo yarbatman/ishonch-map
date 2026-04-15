@@ -12,10 +12,7 @@
     html, body {
       width: 100%;
       height: 100%;
-      font-family: 'Georgia', serif;
-      /* Prevent iOS bounce scroll interfering with the map */
       overflow: hidden;
-      position: fixed;
     }
 
     :root {
@@ -27,21 +24,14 @@
       --border:     rgba(30, 107, 114, 0.25);
     }
 
-    #map-wrapper {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      background: var(--teal-light);
-      /* Let touch events pass through to Leaflet */
-      touch-action: none;
-    }
-
     #map {
       width: 100%;
       height: 100%;
+      background: var(--teal-light);
+      touch-action: none;
     }
 
-    /* ── Marker ── */
+    /* Marker */
     .custom-marker {
       width: 11px;
       height: 11px;
@@ -53,12 +43,8 @@
       transition: transform 0.15s ease, background 0.15s ease;
     }
 
-    /* Bigger tap target on mobile */
     @media (max-width: 768px) {
-      .custom-marker {
-        width: 14px;
-        height: 14px;
-      }
+      .custom-marker { width: 14px; height: 14px; }
     }
 
     .custom-marker:hover,
@@ -67,7 +53,7 @@
       background: var(--teal-dark);
     }
 
-    /* ── Tooltip ── */
+    /* Tooltip */
     .leaflet-tooltip {
       background: var(--white) !important;
       border: 1px solid var(--border) !important;
@@ -81,6 +67,7 @@
 
     .leaflet-tooltip-right::before { border-right-color: var(--border) !important; }
     .leaflet-tooltip-left::before  { border-left-color:  var(--border) !important; }
+    .leaflet-tooltip-top::before   { border-top-color:   var(--border) !important; }
 
     .tooltip-school {
       font-size: 13px;
@@ -104,13 +91,12 @@
       font-style: italic;
     }
 
-    /* Hide coords on small screens to keep tooltip compact */
     @media (max-width: 768px) {
-      .tooltip-coords { display: none; }
-      .tooltip-school { font-size: 12px; }
+      .tooltip-coords  { display: none; }
+      .tooltip-school  { font-size: 12px; }
     }
 
-    /* ── Zoom controls ── */
+    /* Zoom controls */
     .leaflet-control-zoom a {
       background: var(--white) !important;
       color: var(--teal) !important;
@@ -123,7 +109,6 @@
       color: var(--teal-dark) !important;
     }
 
-    /* Larger zoom buttons on mobile */
     @media (max-width: 768px) {
       .leaflet-control-zoom a {
         width: 36px !important;
@@ -133,7 +118,7 @@
       }
     }
 
-    /* ── Attribution ── */
+    /* Attribution */
     .leaflet-control-attribution {
       background: rgba(255,255,255,0.75) !important;
       color: #9bb5b8 !important;
@@ -144,9 +129,7 @@
   </style>
 </head>
 <body>
-  <div id="map-wrapper">
-    <div id="map"></div>
-  </div>
+  <div id="map"></div>
 
   <script>
     const locations = [
@@ -202,31 +185,24 @@
       { city: "Uchtepa district",     school: "School No. 287", lat: 41.277434, lng: 69.166148 },
     ];
 
-    const isMobile = window.innerWidth <= 768;
-
     const uzbekBounds = L.latLngBounds(
       L.latLng(37.0, 56.0),
       L.latLng(45.5, 73.5)
     );
 
     const map = L.map('map', {
-      center: [41.3, 64.5],
-      zoom: isMobile ? 5 : 6,
-      minZoom: isMobile ? 4 : 5,
+      minZoom: 4,
       maxZoom: 13,
       maxBounds: uzbekBounds,
       maxBoundsViscosity: 1.0,
       zoomControl: true,
-      // Mobile touch handling
       tap: true,
       tapTolerance: 15,
       touchZoom: true,
       bounceAtZoomLimits: false,
-      // Disable scroll-wheel zoom so the map doesn't hijack page scrolling
       scrollWheelZoom: false,
     });
 
-    // Re-enable scroll zoom only when the map is focused (clicked/tapped)
     map.on('click', () => map.scrollWheelZoom.enable());
     map.on('blur',  () => map.scrollWheelZoom.disable());
 
@@ -236,46 +212,34 @@
       maxZoom: 19
     }).addTo(map);
 
+    const isMobile = window.innerWidth <= 768;
+
     const markerIcon = L.divIcon({
       className: '',
       html: '<div class="custom-marker"></div>',
-      iconSize: [isMobile ? 14 : 11, isMobile ? 14 : 11],
-      iconAnchor: [isMobile ? 7 : 5.5, isMobile ? 7 : 5.5],
+      iconSize:   [isMobile ? 14 : 11, isMobile ? 14 : 11],
+      iconAnchor: [isMobile ? 7  : 5.5, isMobile ? 7 : 5.5],
       tooltipAnchor: [10, 0],
     });
 
     locations.forEach(({ city, school, lat, lng }) => {
       const marker = L.marker([lat, lng], { icon: markerIcon }).addTo(map);
-
-      if (isMobile) {
-        // On mobile, show tooltip on tap (click) as a popup-style interaction
-        marker.bindTooltip(`
-          <div class="tooltip-school">${school}</div>
-          <div class="tooltip-city">${city}</div>
-        `, {
-          direction: 'top',
-          permanent: false,
-          sticky: false,
-          opacity: 1,
-          offset: [0, -8],
-        });
-      } else {
-        // On desktop, show on hover
-        marker.bindTooltip(`
-          <div class="tooltip-school">${school}</div>
-          <div class="tooltip-city">${city}</div>
-          <div class="tooltip-coords">${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
-        `, {
-          direction: 'right',
-          permanent: false,
-          sticky: false,
-          opacity: 1,
-        });
-      }
+      marker.bindTooltip(`
+        <div class="tooltip-school">${school}</div>
+        <div class="tooltip-city">${city}</div>
+        <div class="tooltip-coords">${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+      `, {
+        direction: isMobile ? 'top' : 'right',
+        permanent: false,
+        sticky: false,
+        opacity: 1,
+        offset: isMobile ? [0, -8] : [0, 0],
+      });
     });
 
-    const bounds = L.latLngBounds(locations.map(l => [l.lat, l.lng]));
-    map.fitBounds(bounds, { padding: isMobile ? [20, 20] : [50, 50] });
+    // Always fit all markers on load regardless of screen size
+    const allPoints = L.latLngBounds(locations.map(l => [l.lat, l.lng]));
+    map.fitBounds(allPoints, { padding: [30, 30] });
   </script>
 </body>
 </html>
