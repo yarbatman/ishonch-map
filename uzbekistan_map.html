@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Uzbekistan Map — ISHONCH</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    :root {
+      --teal:       #1e6b72;
+      --teal-dark:  #134e54;
+      --teal-light: #e8f4f5;
+      --yellow:     #f5c842;
+      --yellow-dark:#c9a020;
+      --white:      #ffffff;
+      --text-muted: #6b8e92;
+      --border:     rgba(30, 107, 114, 0.25);
+      --purple:     #5b6abf;
+      --purple-dark:#3a4899;
+    }
+
+    #map {
+      width: 100%;
+      height: 100%;
+      background: var(--teal-light);
+      touch-action: none;
+    }
+
+    /* ── Toggle bar ── */
+    #toggle-bar {
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      gap: 6px;
+      background: var(--white);
+      padding: 5px;
+      border-radius: 30px;
+      box-shadow: 0 2px 12px rgba(30,107,114,0.18);
+    }
+
+    #toggle-bar button {
+      border: none;
+      border-radius: 24px;
+      padding: 7px 16px;
+      font-size: 12px;
+      font-family: 'Georgia', serif;
+      letter-spacing: 0.04em;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      background: transparent;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+
+    #toggle-bar button.active {
+      color: var(--white);
+    }
+
+    #toggle-bar button#btn-all.active    { background: var(--teal); }
+    #toggle-bar button#btn-schools.active { background: var(--teal); }
+    #toggle-bar button#btn-clinics.active { background: var(--yellow-dark); }
+    #toggle-bar button#btn-training.active { background: var(--purple-dark); }
+
+    #toggle-bar button:hover:not(.active) {
+      background: var(--teal-light);
+      color: var(--teal-dark);
+    }
+
+    /* Colour swatches inside buttons */
+    .swatch {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      margin-right: 5px;
+      vertical-align: middle;
+      border: 1.5px solid rgba(0,0,0,0.12);
+    }
+
+    .swatch-teal   { background: var(--teal); }
+    .swatch-yellow { background: var(--yellow); }
+    .swatch-purple { background: var(--purple); }
+
+    @media (max-width: 480px) {
+      #toggle-bar {
+        flex-wrap: wrap;
+        justify-content: center;
+        border-radius: 14px;
+        gap: 4px;
+        padding: 5px;
+        /* Limit width so it doesn't touch screen edges */
+        max-width: calc(100vw - 28px);
+      }
+      #toggle-bar button {
+        padding: 6px 10px;
+        font-size: 10px;
+        letter-spacing: 0.02em;
+        flex: 1 1 auto;
+        text-align: center;
+      }
+      .swatch {
+        width: 6px;
+        height: 6px;
+        margin-right: 3px;
+      }
+    }
+
+    /* ── Markers ── */
+    .marker-school, .marker-clinic, .marker-training {
+      border-radius: 50%;
+      border: 2px solid var(--white);
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    .marker-school {
+      width: 11px; height: 11px;
+      background: var(--teal);
+      box-shadow: 0 0 0 1.5px var(--teal), 0 2px 6px rgba(30,107,114,0.35);
+    }
+
+    .marker-clinic {
+      width: 11px; height: 11px;
+      background: var(--yellow);
+      box-shadow: 0 0 0 1.5px var(--yellow-dark), 0 2px 6px rgba(197,160,32,0.35);
+    }
+
+    .marker-training {
+      width: 11px; height: 11px;
+      background: var(--purple);
+      box-shadow: 0 0 0 1.5px var(--purple-dark), 0 2px 6px rgba(91,106,191,0.35);
+    }
+
+    .marker-school:hover,  .marker-school:active,
+    .marker-clinic:hover,  .marker-clinic:active,
+    .marker-training:hover, .marker-training:active {
+      transform: scale(1.55);
+    }
+
+    @media (max-width: 768px) {
+      .marker-school, .marker-clinic, .marker-training { width: 14px; height: 14px; }
+    }
+
+    /* ── Tooltips ── */
+    .leaflet-tooltip {
+      background: var(--white) !important;
+      border: 1px solid var(--border) !important;
+      border-radius: 3px !important;
+      box-shadow: 0 4px 16px rgba(30,107,114,0.15) !important;
+      padding: 9px 13px !important;
+      font-family: 'Georgia', serif !important;
+      white-space: normal !important;
+      max-width: 260px !important;
+    }
+
+    .leaflet-tooltip-right::before { border-right-color: var(--border) !important; }
+    .leaflet-tooltip-left::before  { border-left-color:  var(--border) !important; }
+    .leaflet-tooltip-top::before   { border-top-color:   var(--border) !important; }
+
+    .tt-title {
+      font-size: 13px;
+      font-weight: bold;
+      letter-spacing: 0.03em;
+    }
+
+    .tt-school   .tt-title { color: var(--teal-dark); }
+    .tt-clinic   .tt-title { color: var(--yellow-dark); }
+    .tt-training .tt-title { color: var(--purple-dark); }
+
+    .tt-sub {
+      font-size: 10px;
+      color: var(--text-muted);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    .tt-coords {
+      font-size: 9px;
+      color: #b0c8cb;
+      margin-top: 4px;
+      font-style: italic;
+    }
+
+    @media (max-width: 768px) {
+      .tt-coords { display: none; }
+      .tt-title  { font-size: 12px; }
+    }
+
+    /* ── Zoom controls ── */
+    .leaflet-control-zoom a {
+      background: var(--white) !important;
+      color: var(--teal) !important;
+      border-color: var(--border) !important;
+      font-weight: bold;
+    }
+
+    .leaflet-control-zoom a:hover {
+      background: var(--teal-light) !important;
+      color: var(--teal-dark) !important;
+    }
+
+    @media (max-width: 768px) {
+      .leaflet-control-zoom a {
+        width: 36px !important;
+        height: 36px !important;
+        line-height: 36px !important;
+        font-size: 18px !important;
+      }
+    }
+
+    /* ── Attribution ── */
+    .leaflet-control-attribution {
+      background: rgba(255,255,255,0.75) !important;
+      color: #9bb5b8 !important;
+      font-size: 9px;
+    }
+
+    .leaflet-control-attribution a { color: var(--teal) !important; }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="toggle-bar">
+    <button id="btn-all"      class="active" onclick="setFilter('all')">
+      <span class="swatch swatch-teal"></span><span class="swatch swatch-yellow"></span><span class="swatch swatch-purple"></span> All
+    </button>
+    <button id="btn-schools"  onclick="setFilter('schools')">
+      <span class="swatch swatch-teal"></span> Schools
+    </button>
+    <button id="btn-clinics"  onclick="setFilter('clinics')">
+      <span class="swatch swatch-yellow"></span> Perinatal Clinics
+    </button>
+    <button id="btn-training" onclick="setFilter('training')">
+      <span class="swatch swatch-purple"></span> Teacher Training Centres
+    </button>
+  </div>
+
+  <script>
+    // ── SCHOOLS ──────────────────────────────────────────────────────────────
+    const schools = [
+      { city: "Nukus city",           name: "School No. 8",   lat: 42.505230, lng: 59.600261 },
+      { city: "Nukus city",           name: "School No. 34",  lat: 42.447397, lng: 59.641398 },
+      { city: "Beruniy district",     name: "School No. 36",  lat: 41.743003, lng: 60.699254 },
+      { city: "Takhtakupir district", name: "School No. 5",   lat: 41.655380, lng: 60.670400 },
+      { city: "Muynak district",      name: "School No. 3",   lat: 40.428266, lng: 71.520162 },
+      { city: "Andijan city",         name: "School No. 17",  lat: 41.528888, lng: 60.352773 },
+      { city: "Asaka district",       name: "School No. 60",  lat: 40.661680, lng: 72.236365 },
+      { city: "Buston district",      name: "School No. 3",   lat: 40.676174, lng: 71.987403 },
+      { city: "Ulugnor district",     name: "School No. 1",   lat: 40.746800, lng: 71.709720 },
+      { city: "Bukhara city",         name: "School No. 45",  lat: 39.784525, lng: 64.415234 },
+      { city: "Kagan city",           name: "School No. 3",   lat: 39.722511, lng: 64.555857 },
+      { city: "Romitan district",     name: "IDUM No. 1",     lat: 39.933053, lng: 64.386546 },
+      { city: "Karshi city",          name: "School No. 8",   lat: 38.878098, lng: 65.809150 },
+      { city: "Karshi district",      name: "School No. 65",  lat: 38.827209, lng: 65.724735 },
+      { city: "Guzar district",       name: "School No. 34",  lat: 38.758073, lng: 65.129322 },
+      { city: "Shakhrisabz district", name: "School No. 20",  lat: 38.915902, lng: 65.255419 },
+      { city: "Zafarabad district",   name: "School No. 18",  lat: 40.228976, lng: 68.086318 },
+      { city: "Gallaorol district",   name: "School No. 47",  lat: 39.973247, lng: 67.506508 },
+      { city: "Jizzakh city",         name: "School No. 1",   lat: 40.107597, lng: 67.821702 },
+      { city: "Navoi city",           name: "School No. 5",   lat: 40.077050, lng: 65.388470 },
+      { city: "Karmana district",     name: "School No. 21",  lat: 40.155720, lng: 65.482836 },
+      { city: "Kyzyltepa district",   name: "School No. 41",  lat: 40.037308, lng: 64.831881 },
+      { city: "Uchkurgan district",   name: "School No. 10",  lat: 41.005240, lng: 72.004986 },
+      { city: "Pop district",         name: "School No. 1",   lat: 40.874873, lng: 71.102557 },
+      { city: "Chust district",       name: "School No. 58",  lat: 41.112887, lng: 71.237639 },
+      { city: "Samarkand city",       name: "School No. 13",  lat: 39.661418, lng: 66.936056 },
+      { city: "Akdarya district",     name: "IDUM No. 47",    lat: 39.876060, lng: 66.749489 },
+      { city: "Jambay district",      name: "School No. 23",  lat: 39.692736, lng: 67.088754 },
+      { city: "Angor district",       name: "School No. 24",  lat: 37.511750, lng: 67.416990 },
+      { city: "Shurchi district",     name: "IDUM No. 36",    lat: 38.010554, lng: 67.792546 },
+      { city: "Termez district",      name: "School No. 5",   lat: 37.263023, lng: 67.255349 },
+      { city: "Termez district",      name: "School No. 2",   lat: 37.214989, lng: 67.276844 },
+      { city: "Termez district",      name: "School No. 3",   lat: 37.225428, lng: 67.271448 },
+      { city: "Bayaut district",      name: "School No. 17",  lat: 40.421799, lng: 68.998833 },
+      { city: "Gulistan district",    name: "School No. 7",   lat: 40.503978, lng: 68.776811 },
+      { city: "Syrdarya district",    name: "School No. 1",   lat: 40.837534, lng: 68.663226 },
+      { city: "Bekabad city",         name: "School No. 17",  lat: 40.863931, lng: 69.586714 },
+      { city: "Pskent district",      name: "School No. 8",   lat: 40.908279, lng: 69.340285 },
+      { city: "Akkurgan district",    name: "School No. 18",  lat: 40.883449, lng: 69.063498 },
+      { city: "Besharyk district",    name: "School No. 44",  lat: 40.342115, lng: 70.668663 },
+      { city: "Altyaryk district",    name: "School No. 29",  lat: 40.502747, lng: 71.435771 },
+      { city: "Dangara district",     name: "School No. 34",  lat: 40.725995, lng: 70.920596 },
+      { city: "Uzbekistan district",  name: "School No. 24",  lat: 40.370923, lng: 70.824934 },
+      { city: "Furkat district",      name: "School No. 26",  lat: 40.531611, lng: 70.813951 },
+      { city: "Urgench district",     name: "School No. 16",  lat: 41.553933, lng: 60.607377 },
+      { city: "Urgench district",     name: "School No. 2",   lat: 41.585158, lng: 60.613427 },
+      { city: "Khiva city",           name: "School No. 5",   lat: 41.377952, lng: 60.349437 },
+      { city: "Khazarasp district",   name: "School No. 25",  lat: 41.303772, lng: 61.114052 },
+      { city: "Sergeli district",     name: "School No. 266", lat: 41.247517, lng: 69.291287 },
+      { city: "Uchtepa district",     name: "School No. 287", lat: 41.277434, lng: 69.166148 },
+    ];
+
+    // ── PERINATAL CENTERS ────────────────────────────────────────────────────
+    const clinics = [
+      { name: "RIO & BSIATM DM", lat: 41.356289, lng: 69.358880 },
+      { name: "Republican Perinatal Centre", lat: 41.353898, lng: 69.330578 },
+      { name: "Maternity Complex of Tashkent State Medical University No. 2 Clinic", lat: 41.350974, lng: 69.171693 },
+      { name: "RIO & BSATM Namangan Regional Branch", lat: 40.985397, lng: 71.698298 },
+      { name: "Namangan City Maternity Complex", lat: 41.007372, lng: 71.626628 },
+      { name: "Namangan City 2nd Maternity Complex", lat: 41.004786, lng: 71.706572 },
+      { name: "Davlatabad District Medical Association – Maternity Department", lat: 40.998648, lng: 71.591265 },
+      { name: "Namangan District Medical Association – Maternity Complex", lat: 40.929035, lng: 71.584531 },
+      { name: "Turakurgan District Maternity Department", lat: 41.000630, lng: 71.503726 },
+      { name: "Yangikurgan Interdistrict Perinatal Centre", lat: 41.207686, lng: 71.719453 },
+      { name: "Uchkurgan District Medical Association – Maternity Department", lat: 41.110079, lng: 72.070404 },
+      { name: "Chartak District Medical Association – Maternity Department", lat: 41.078583, lng: 71.810080 },
+      { name: "Uychi District Medical Association – Maternity Department", lat: 41.029037, lng: 71.839406 },
+      { name: "Pop District Medical Association – Maternity Department", lat: 41.029037, lng: 71.839406 },
+      { name: "Mingbulak District Medical Association – Maternity Department", lat: 40.860194, lng: 71.454624 },
+      { name: "Kosonsoy District Medical Association – Maternity Complex", lat: 41.247091, lng: 71.543067 },
+      { name: "Chust District Medical Association – Maternity Department", lat: 41.017463, lng: 71.205304 },
+      { name: "Norin District Medical Association – Maternity Department", lat: 41.017463, lng: 71.205304 },
+      { name: "RIO & BSATM Khorezm Regional Branch", lat: 41.545374, lng: 60.604164 },
+      { name: "Urgench City Perinatal Centre", lat: 41.310264, lng: 69.249347 },
+      { name: "Tuproqqal'a District Medical Association – Maternity Department", lat: 41.228552, lng: 61.304455 },
+      { name: "Bogot District Medical Association – Maternity Department", lat: 41.314664, lng: 60.853002 },
+      { name: "Gurlan District Medical Association – Maternity Department", lat: 41.843524, lng: 60.406636 },
+      { name: "Kushkupir District Medical Association – Maternity Department", lat: 41.534170, lng: 60.340397 },
+      { name: "Urgench District Medical Association – Maternity Department", lat: 41.546451, lng: 60.605261 },
+      { name: "Khazarasp District Medical Association – Maternity Department", lat: 41.320518, lng: 61.073399 },
+      { name: "Khiva District Medical Association – Maternity Department", lat: 41.390070, lng: 60.348914 },
+      { name: "Khonka District Medical Association – Maternity Department", lat: 41.468286, lng: 60.780217 },
+      { name: "Shovot District Medical Association – Maternity Department", lat: 41.657059, lng: 60.280760 },
+      { name: "Yangiarik District Medical Association", lat: 41.372772, lng: 60.603624 },
+      { name: "Yangibozor District Medical Association – Maternity Department", lat: 41.718251, lng: 60.540667 },
+      { name: "RIO & BSATM Karakalpakstan Branch", lat: 42.454681, lng: 59.586680 },
+      { name: "Nukus City Medical Association – Maternity Department", lat: 42.474515, lng: 59.609586 },
+      { name: "Turtkul District Medical Association – Maternity DepartmentBeruniy District Medical Association – Maternity Department", lat: 41.547071, lng: 60.990469 },
+      { name: "Amudarya District Medical Association – Maternity Department", lat: 41.687694, lng: 60.739273 },
+      { name: "Ellikkala District Medical Association – Maternity Department", lat: 41.998772, lng: 60.257906 },
+      { name: "Kanlykul District Medical Association", lat: 41.843765, lng: 60.904193 },
+      { name: "Shumanay District Medical Association", lat: 42.838751, lng: 59.005396 },
+      { name: "Muynak District Medical Association", lat: 42.626705, lng: 58.928218 },
+      { name: "Khojayli District Medical Association – Maternity Department", lat: 43.754090, lng: 59.022761 },
+      { name: "Kungrad District Medical Association – Maternity Department", lat: 42.412081, lng: 59.461687 },
+      { name: "Kegeyli District Medical Association – Maternity Department", lat: 43.049834, lng: 58.844153 },
+      { name: "Bozatov District Medical Association – Maternity Department", lat: 42.743301, lng: 59.826598 },
+      { name: "Nukus District Medical Association – Maternity Department", lat: 42.924194, lng: 59.324538 },
+      { name: "Karaozak District Medical Association – Maternity Department", lat: 42.598342, lng: 59.537492 },
+      { name: "Takhtakupir District Medical Association", lat: 42.500085, lng: 59.566325 },
+      { name: "Shymbay District Medical Association – Maternity Department", lat: 43.026787, lng: 60.281012 },
+      { name: "Takhiatash District Medical Association – Maternity Department", lat: 42.920055, lng: 59.778438 },
+      { name: "Takhiatash District Medical Association – Maternity Department", lat: 42.328278, lng: 59.575353 },
+      { name: "RIO & BSATM Syrdarya Regional Branch (Gulistan)", lat: 40.495974, lng: 68.773195 },
+      { name: "Gulistan City Maternity Department", lat: 40.518937, lng: 68.752479 },
+      { name: "Yangiyer Interdistrict Perinatal Centre", lat: 40.267221, lng: 68.790882 },
+      { name: "Shirin City Medical Association – Maternity Department", lat: 40.225655, lng: 69.134253 },
+      { name: "Oqoltin Interdistrict Perinatal Centre", lat: 40.535354, lng: 68.415009 },
+      { name: "Bayovut District Maternity Hospital", lat: 40.295832, lng: 69.023900 },
+      { name: "Gulistan District Medical Association – Maternity Complex", lat: 40.492531, lng: 68.751345 },
+      { name: "Saykhunabad District Medical Association – Maternity Department", lat: 40.711812, lng: 68.849318 },
+      { name: "Sardoba District Medical Association – Maternity Department", lat: 40.533309, lng: 68.415298 },
+      { name: "Syrdarya Interdistrict Perinatal Centre", lat: 40.492531, lng: 68.751345 },
+      { name: "Khovos District Medical Association – Maternity Department", lat: 40.216888, lng: 68.838741 },
+      { name: "RIO & BSATM Fergana Regional Branch", lat: 40.379343, lng: 71.795208 },
+      { name: "Fergana City Medical Association – Maternity Department", lat: 40.438038, lng: 71.763987 },
+      { name: "Kokand City Maternity Complex", lat: 40.518841, lng: 70.948314 },
+      { name: "Margilan Interdistrict Perinatal Centre", lat: 40.474549, lng: 71.757283 },
+      { name: "Quvasoy City Medical Association – Maternity Department", lat: 40.287871, lng: 71.975757 },
+      { name: "Altariq District Medical Association – Maternity Department", lat: 40.419949, lng: 71.507795 },
+      { name: "Kushtepa District Medical Association – Maternity Department", lat: 40.478019, lng: 71.649934 },
+      { name: "Bagdad District Medical Association – Maternity Department", lat: 40.465450, lng: 71.218370 },
+      { name: "Beshariq Interdistrict Perinatal Centre", lat: 40.439241, lng: 70.584667 },
+      { name: "Buvayda District Medical Association – Maternity Department", lat: 40.566891, lng: 71.143844 },
+      { name: "Dangara District Medical Association – Maternity Department", lat: 40.582476, lng: 70.918983 },
+      { name: "Quva District Medical Association – Maternity Department", lat: 40.522419, lng: 72.082121 },
+      { name: "Rishton District Medical Association – Maternity Hospital Department", lat: 40.425795, lng: 71.192461 },
+      { name: "Sokh District Medical Association", lat: 40.522635, lng: 70.957243 },
+      { name: "Tashlak District Medical Association – Maternity Hospital Department", lat: 40.501117, lng: 71.837698 },
+      { name: "Uzbekistan District Medical Association – Maternity Hospital Department", lat: 40.372510, lng: 70.834941 },
+      { name: "Uchkuprik District Medical Association – Maternity Complex", lat: 40.546481, lng: 71.054698 },
+      { name: "Fergana District Medical Association – Maternity Department", lat: 40.438038, lng: 71.763987 },
+      { name: "Furkat District Medical Association – Maternity Department", lat: 40.473713, lng: 70.772233 },
+      { name: "Yazyavan District Medical Association – Maternity Department", lat: 40.661257, lng: 71.746148 },
+      { name: "RIO & BSATM Navoi Regional Branch", lat: 40.087626, lng: 65.374778 },
+      { name: "Navoi City Medical Association – Maternity Department", lat: 40.093517, lng: 65.384986 },
+      { name: "Zarafshan Interdistrict Perinatal Centre", lat: 40.089611, lng: 65.372823 },
+      { name: "Tomdi District Medical Association", lat: 42.021099, lng: 65.339857 },
+      { name: "Uchkuduk District Medical Association – Maternity Department", lat: 42.147939, lng: 63.559563 },
+      { name: "Karmana District Medical Association – Maternity Department", lat: 40.145926, lng: 65.357383 },
+      { name: "Kanimex District Medical Association", lat: 40.273824, lng: 65.140581 },
+      { name: "Navbahor Interdistrict Perinatal Centre", lat: 40.225974, lng: 65.299569 },
+      { name: "Nurata District Medical Association – Maternity Department", lat: 40.561624, lng: 65.706305 },
+      { name: "Kiziltepa District Medical Association – Maternity Department", lat: 40.065873, lng: 64.810345 },
+      { name: "Khatirchi Interdistrict Perinatal Centre", lat: 40.067753, lng: 65.997722 },
+      { name: "RIO & BSATM Andijan Regional Branch", lat: 40.749887, lng: 72.371666 },
+      { name: "Andijan City 1st Maternity Complex", lat: 40.788724, lng: 72.333253 },
+      { name: "Andijan City 2nd Maternity Complex", lat: 40.777536, lng: 72.352280 },
+      { name: "Korasuv City Medical Association – Maternity Department", lat: 40.728685, lng: 72.872239 },
+      { name: "Khanabad City Medical Association – Maternity Department", lat: 40.815084, lng: 72.986284 },
+      { name: "Andijan District Maternity Complex", lat: 40.797319, lng: 72.373228 },
+      { name: "Altinkul District Medical Association – Maternity Department", lat: 40.796333, lng: 72.158823 },
+      { name: "Asaka District 2nd Maternity Complex", lat: 40.643980, lng: 72.235412 },
+      { name: "Asaka District 1st Maternity Complex", lat: 40.666016, lng: 72.241958 },
+      { name: "Baliqchi District (Chinabad) 2nd Maternity Complex", lat: 40.879152, lng: 71.970970 },
+      { name: "Baliqchi District Medical Association – Maternity Department", lat: 40.902800, lng: 71.851973 },
+      { name: "Boston District Maternity Complex", lat: 40.692038, lng: 71.916934 },
+      { name: "Buloqboshi District Maternity Complex", lat: 40.628111, lng: 72.502595 },
+      { name: "Jalaquduq District Maternity Complex", lat: 40.756312, lng: 72.603569 },
+      { name: "Izboskan District Medical Association – Maternity Department", lat: 40.896300, lng: 72.259079 },
+      { name: "Kurgantepa District Medical Association – Maternity Department", lat: 40.724228, lng: 72.763483 },
+      { name: "Ulugnor District Medical Association", lat: 40.748971, lng: 71.708054 },
+      { name: "Marhamat District Maternity Complex", lat: 40.502686, lng: 72.334358 },
+      { name: "Pakhtaabad District Medical Association – Maternity Department", lat: 40.931536, lng: 72.505303 },
+      { name: "Khujabad District Medical Association – Maternity Department", lat: 40.662486, lng: 72.575619 },
+      { name: "Shahrihan Interdistrict Perinatal Centre", lat: 40.698145, lng: 72.060966 },
+      { name: "RIO & BSATM Bukhara Regional Branch", lat: 39.760232, lng: 64.411974 },
+      { name: "Bukhara City Maternity Complex", lat: 39.808581, lng: 64.435061 },
+      { name: "Kogon City Medical Association – Maternity Department", lat: 39.733379, lng: 64.540843 },
+      { name: "Olot District Medical Association – Maternity Department", lat: 39.419165, lng: 63.807217 },
+      { name: "Karakul Interdistrict Perinatal Centre", lat: 39.532800, lng: 63.823828 },
+      { name: "Peshku District Medical Association – Maternity Department", lat: 40.021853, lng: 64.323138 },
+      { name: "Romitan Interdistrict Perinatal Centre", lat: 39.926732, lng: 64.389093 },
+      { name: "Kogon District Medical Association – Maternity Department", lat: 39.733379, lng: 64.540843 },
+      { name: "Karakulbazor District Medical Association – Maternity Department", lat: 39.497896, lng: 64.788677 },
+      { name: "Bukhara District Medical Association – Maternity Department", lat: 39.766212, lng: 64.408993 },
+      { name: "Vobkent District Medical Association – Maternity Department", lat: 40.025180, lng: 64.524015 },
+      { name: "Gijduvan District Medical Association – Maternity Department", lat: 40.110182, lng: 64.683446 },
+      { name: "Shofirkon District Medical Association – Maternity Department", lat: 40.120640, lng: 64.515317 },
+      { name: "Jondor District Medical Association – Maternity Department", lat: 39.738837, lng: 64.186181 },
+      { name: "RIO & BSATM Jizzakh Regional Branch", lat: 40.127650, lng: 67.829655 },
+      { name: "Jizzakh City Maternity Complex", lat: 40.107591, lng: 67.845064 },
+      { name: "Arnasay District Medical Association – Maternity Department", lat: 40.496987, lng: 67.883403 },
+      { name: "Bakhmal District Medical Association – Maternity Department", lat: 39.760204, lng: 67.632810 },
+      { name: "Gallaorol Interdistrict Perinatal Centre", lat: 40.016768, lng: 67.581049 },
+      { name: "Dustlik District Medical Association – Maternity Department", lat: 40.520435, lng: 68.026603 },
+      { name: "Sharof Rashidov District Medical Association – Maternity Department", lat: 40.015446, lng: 68.012647 },
+      { name: "Zaamin Interdistrict Perinatal Centre", lat: 39.957990, lng: 68.402773 },
+      { name: "Zarbdor District Medical Association – Maternity Department", lat: 40.082458, lng: 67.805880 },
+      { name: "Zafarobod District Medical Association – Maternity Department", lat: 40.394566, lng: 67.819947 },
+      { name: "Pakhtakor Interdistrict Perinatal Centre", lat: 40.307951, lng: 67.961437 },
+      { name: "Mirzachul District Medical Association – Maternity Department", lat: 40.660562, lng: 68.178922 },
+      { name: "Forish District Medical Association – Maternity Department", lat: 40.422408, lng: 67.172750 },
+      { name: "Yangiabad District Medical Association – Maternity Department", lat: 39.906563, lng: 68.772354 },
+      { name: "RIO & BSATM Kashkadarya Regional Branch", lat: 38.849537, lng: 65.832074 },
+      { name: "Kitab District Medical Association – Maternity Department", lat: 39.119427, lng: 66.890378 },
+      { name: "Karshi City Maternity Complex", lat: 38.850864, lng: 65.809288 },
+      { name: "Karshi District Medical Association – Maternity Department", lat: 38.850864, lng: 65.809288 },
+      { name: "Guzar District Medical Association – Maternity Department", lat: 38.629469, lng: 66.252568 },
+      { name: "Kasbi District Medical Association – Maternity Department", lat: 38.921120, lng: 65.422929 },
+      { name: "Kamashi District Medical Association – Maternity Department", lat: 38.815419, lng: 66.462668 },
+      { name: "Koson District Maternity Complex", lat: 39.039574, lng: 65.584319 },
+      { name: "Muborak District Medical Association – Maternity Department", lat: 39.276270, lng: 65.150302 },
+      { name: "Chiroqchi District Medical Association – Maternity Department", lat: 39.025169, lng: 66.565861 },
+      { name: "Dehqonobod District Medical Association – Maternity Department", lat: 38.341798, lng: 66.579128 },
+      { name: "Mirishkor District Medical Association – Maternity Department", lat: 38.857152, lng: 65.273031 },
+      { name: "Yakkabog District Medical Association – Maternity Department No. 1", lat: 38.980072, lng: 66.679891 },
+      { name: "Yakkabog District Medical Association – Maternity Department No. 2", lat: 38.969460, lng: 66.687667 },
+      { name: "Nishon District Medical Association – Maternity Department", lat: 38.659395, lng: 65.696554 },
+      { name: "Shahrisabz District Medical Association – Maternity Department", lat: 39.039500, lng: 66.965363 },
+      { name: "Kukdala District Medical Association – Maternity Department", lat: 39.228231, lng: 66.161559 },
+      { name: "RIO & BSATM Samarkand Regional Branch", lat: 39.655841, lng: 66.920859 },
+      { name: "Samarkand State Medical Institute Clinic", lat: 39.628776, lng: 66.984137 },
+      { name: "Samarkand City 1st Maternity Facility", lat: 39.668083, lng: 66.964456 },
+      { name: "Samarkand City 2nd Maternity Facility", lat: 39.650627, lng: 66.952940 },
+      { name: "Samarkand City 3rd Maternity Facility", lat: 39.643947, lng: 66.987452 },
+      { name: "Kattakurgan City Interdistrict Perinatal Centre", lat: 39.899131, lng: 66.260157 },
+      { name: "Okdarya District Medical Association – Maternity Department", lat: 39.881323, lng: 66.748832 },
+      { name: "Bulungur District Medical Association – Maternity Department", lat: 39.761399, lng: 67.271377 },
+      { name: "Jomboy District Medical Association – Maternity Department", lat: 39.703905, lng: 67.102869 },
+      { name: "Kattakurgan District Medical Association – Maternity Department", lat: 39.899131, lng: 66.260157 },
+      { name: "Kushrabot District Medical Association – Maternity Department", lat: 40.254670, lng: 66.638508 },
+      { name: "Narpay District Medical Association – Maternity Department", lat: 39.933782, lng: 65.898073 },
+      { name: "Nurabad District Medical Association – Maternity Department", lat: 39.621213, lng: 66.307459 },
+      { name: "Ishtikhon District Medical Association – Maternity Department", lat: 39.965300, lng: 66.486183 },
+      { name: "Pakhtachi District Medical Association – Maternity Department", lat: 40.046063, lng: 65.665557 },
+      { name: "Payariq Interdistrict Perinatal Centre", lat: 39.986594, lng: 66.848487 },
+      { name: "Pastdargom Interdistrict Perinatal Centre", lat: 39.708073, lng: 66.673192 },
+      { name: "Samarkand District Medical Association – Maternity Complex", lat: 39.616592, lng: 66.956405 },
+      { name: "Toyloq District Medical Association – Maternity Department", lat: 39.600957, lng: 67.088106 },
+      { name: "Urgut Interdistrict Perinatal Centre", lat: 39.406703, lng: 67.243373 },
+      { name: "RIO & BSATM Surkhandarya Regional Branch", lat: 38.274531, lng: 67.901826 },
+      { name: "Termez City Medical Association – Maternity Department", lat: 37.239283, lng: 67.283015 },
+      { name: "Oltinsay District Medical Association – Maternity Department", lat: 38.170326, lng: 67.728289 },
+      { name: "Angor District Medical Association", lat: 37.455648, lng: 67.152107 },
+      { name: "Boysun District Medical Association – Maternity Department", lat: 38.207262, lng: 67.210013 },
+      { name: "Muzrabot District Medical Association", lat: 37.418517, lng: 66.986327 },
+      { name: "Denov District Medical Association – Maternity Department", lat: 38.320023, lng: 67.902107 },
+      { name: "Jarkurgan District Medical Association – Maternity Department", lat: 37.519397, lng: 67.425116 },
+      { name: "Kumkurgan Interdistrict Perinatal Centre", lat: 37.840526, lng: 67.589261 },
+      { name: "Kizirik District Medical Association – Maternity Department", lat: 37.667111, lng: 67.232901 },
+      { name: "Sariosiyo District Medical Association – Maternity Department", lat: 38.380173, lng: 67.973908 },
+      { name: "Termez District Medical Association – Maternity Department", lat: 37.239283, lng: 67.283015 },
+      { name: "Uzun District Medical Association – Maternity Department", lat: 38.372293, lng: 68.024447 },
+      { name: "Sherabad Interdistrict Perinatal Centre", lat: 37.691065, lng: 67.034707 },
+      { name: "Shurchi District Medical Association – Maternity Department", lat: 38.002523, lng: 67.790944 },
+      { name: "Bandikhan District Medical Association", lat: 37.861591, lng: 67.394071 },
+      { name: "RIO & BSATM Tashkent Regional Branch", lat: 41.445608, lng: 69.556867 },
+      { name: "Nurafshan City Medical Association – Maternity Department", lat: 41.057510, lng: 69.347797 },
+      { name: "Almalyk Interdistrict Perinatal Centre", lat: 40.854796, lng: 69.594445 },
+      { name: "Angren City Medical Association – Maternity Department", lat: 41.016170, lng: 70.077985 },
+      { name: "Bekabad City Interdistrict Perinatal Centre", lat: 40.232688, lng: 69.247874 },
+      { name: "Chirchik City Maternity Department", lat: 41.460593, lng: 69.556722 },
+      { name: "Akhangaran City Medical Association – Maternity Institution", lat: 40.916676, lng: 69.115048 },
+      { name: "Yangiyul City Medical Association – Maternity Department", lat: 41.160120, lng: 69.007162 },
+      { name: "Bekabad District Medical Association – Maternity Department", lat: 40.232688, lng: 69.247874 },
+      { name: "Buka District Medical Association – Maternity Department", lat: 40.828696, lng: 69.208989 },
+      { name: "Bustonlik District Medical Association – Maternity Department", lat: 41.567319, lng: 69.769580 },
+      { name: "Zangiota District Medical Association – Maternity Department", lat: 41.250703, lng: 69.158018 },
+      { name: "Tashkent District Medical Association – Maternity Department", lat: 41.394852, lng: 69.205751 },
+      { name: "Kibray District Medical Association – Maternity Department", lat: 41.369348, lng: 69.348275 },
+      { name: "Kuyichirchik Interdistrict Perinatal Centre", lat: 40.844733, lng: 68.920191 },
+      { name: "Akkurgan District Medical Association – Maternity Department", lat: 40.879926, lng: 69.029881 },
+      { name: "Akhangaran District Medical Association – Maternity Department", lat: 40.897179, lng: 69.635889 },
+      { name: "Parkent District Medical Association – Maternity Department", lat: 41.301734, lng: 69.638052 },
+      { name: "Pskent District Medical Association – Maternity Department", lat: 40.900663, lng: 69.338602 },
+      { name: "Chinoz District Medical Association – Maternity Department", lat: 40.935948, lng: 68.751163 },
+      { name: "Yukorichirchik District Medical Association – Maternity Department", lat: 41.169585, lng: 69.545234 },
+      { name: "Yangiyul District Medical Association – Maternity Department", lat: 41.160120, lng: 69.007162 },
+      { name: "RIO & BSATM (Central)", lat: 41.345849, lng: 69.202116 },
+      { name: "Tashkent City Interdistrict Perinatal Centre No. 1", lat: 41.196311, lng: 69.213522 },
+      { name: "Tashkent City Interdistrict Perinatal Centre No. 2", lat: 41.346309, lng: 69.241960 },
+      { name: "Tashkent City 3rd Maternity Complex", lat: 41.344196, lng: 69.261305 },
+      { name: "Tashkent City 4th Maternity Complex", lat: 41.285267, lng: 69.288697 },
+      { name: "Tashkent City 5th Maternity Complex", lat: 41.268362, lng: 69.299625 },
+      { name: "Tashkent City Interdistrict Perinatal Centre No. 6", lat: 41.308632, lng: 69.287028 },
+      { name: "Tashkent City 7th Maternity Complex", lat: 41.294372, lng: 69.210277 },
+      { name: "Tashkent City 8th Maternity Complex", lat: 41.280038, lng: 69.267454 },
+      { name: "Tashkent City Interdistrict Perinatal Centre No. 9", lat: 41.290354, lng: 69.353210 },
+      { name: "I. Ergashev City Clinical Hospital No. 4", lat: 41.288265, lng: 69.347121 },
+      { name: "City Clinical Hospital No. 5 – Maternity Department", lat: 41.351236, lng: 69.371176 },
+    ];
+
+    // ── TEACHER TRAINING CENTERS ─────────────────────────────────────────────
+    const training = [
+      { city: "Bukhara City",  name: "Bukhara Region Pedagogical Skills Centre",    lat: 39.748255, lng: 64.436542 },
+      { city: "Termez City",   name: "Surkhandarya Region Pedagogical Skills Centre", lat: 37.239714, lng: 67.265462 },
+    ];
+
+    // ── MAP SETUP ─────────────────────────────────────────────────────────────
+    const uzbekBounds = L.latLngBounds(L.latLng(37.0, 56.0), L.latLng(45.5, 73.5));
+
+    const map = L.map('map', {
+      minZoom: 4,
+      maxZoom: 13,
+      maxBounds: uzbekBounds,
+      maxBoundsViscosity: 1.0,
+      zoomControl: true,
+      tap: true,
+      tapTolerance: 15,
+      touchZoom: true,
+      bounceAtZoomLimits: false,
+      scrollWheelZoom: false,
+    });
+
+    map.on('click', () => map.scrollWheelZoom.enable());
+    map.on('blur',  () => map.scrollWheelZoom.disable());
+
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    const isMobile = window.innerWidth <= 768;
+    const mSize = isMobile ? 14 : 11;
+    const mAnchor = mSize / 2;
+
+    // ── CREATE MARKER LAYERS ──────────────────────────────────────────────────
+    const schoolLayer   = L.layerGroup();
+    const clinicLayer   = L.layerGroup();
+    const trainingLayer = L.layerGroup();
+
+    function makeIcon(cls) {
+      return L.divIcon({
+        className: '',
+        html: `<div class="${cls}"></div>`,
+        iconSize:   [mSize, mSize],
+        iconAnchor: [mAnchor, mAnchor],
+        tooltipAnchor: [mSize / 2 + 3, 0],
+      });
+    }
+
+    const schoolIcon   = makeIcon('marker-school');
+    const clinicIcon   = makeIcon('marker-clinic');
+    const trainingIcon = makeIcon('marker-training');
+
+    schools.forEach(({ city, name, lat, lng }) => {
+      const m = L.marker([lat, lng], { icon: schoolIcon });
+      m.bindTooltip(`
+        <div class="tt-school">
+          <div class="tt-title">${name}</div>
+          <div class="tt-sub">${city}</div>
+          <div class="tt-coords">${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+        </div>`, {
+        direction: isMobile ? 'top' : 'right',
+        permanent: false,
+        sticky: false,
+        opacity: 1,
+        offset: isMobile ? [0, -8] : [0, 0],
+      });
+      schoolLayer.addLayer(m);
+    });
+
+    clinics.forEach(({ name, lat, lng }) => {
+      const m = L.marker([lat, lng], { icon: clinicIcon });
+      m.bindTooltip(`
+        <div class="tt-clinic">
+          <div class="tt-title">${name}</div>
+          <div class="tt-sub">Perinatal Centre</div>
+          <div class="tt-coords">${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+        </div>`, {
+        direction: isMobile ? 'top' : 'right',
+        permanent: false,
+        sticky: false,
+        opacity: 1,
+        offset: isMobile ? [0, -8] : [0, 0],
+      });
+      clinicLayer.addLayer(m);
+    });
+
+    training.forEach(({ city, name, lat, lng }) => {
+      const m = L.marker([lat, lng], { icon: trainingIcon });
+      m.bindTooltip(`
+        <div class="tt-training">
+          <div class="tt-title">${name}</div>
+          <div class="tt-sub">${city}</div>
+          <div class="tt-coords">${lat.toFixed(6)}, ${lng.toFixed(6)}</div>
+        </div>`, {
+        direction: isMobile ? 'top' : 'right',
+        permanent: false,
+        sticky: false,
+        opacity: 1,
+        offset: isMobile ? [0, -8] : [0, 0],
+      });
+      trainingLayer.addLayer(m);
+    });
+
+    // Add all layers by default
+    schoolLayer.addTo(map);
+    clinicLayer.addTo(map);
+    trainingLayer.addTo(map);
+
+    // Fit all points on load
+    const allPoints = schools.map(s => [s.lat, s.lng])
+      .concat(clinics.map(c => [c.lat, c.lng]))
+      .concat(training.map(t => [t.lat, t.lng]));
+    map.fitBounds(L.latLngBounds(allPoints), { padding: [30, 30] });
+
+    // ── TOGGLE ────────────────────────────────────────────────────────────────
+    function setFilter(mode) {
+      document.querySelectorAll('#toggle-bar button').forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-' + mode).classList.add('active');
+
+      if (mode === 'all') {
+        schoolLayer.addTo(map);
+        clinicLayer.addTo(map);
+        trainingLayer.addTo(map);
+        map.fitBounds(L.latLngBounds(allPoints), { padding: [30, 30] });
+      } else if (mode === 'schools') {
+        clinicLayer.remove();
+        trainingLayer.remove();
+        schoolLayer.addTo(map);
+        map.fitBounds(L.latLngBounds(schools.map(s => [s.lat, s.lng])), { padding: [30, 30] });
+      } else if (mode === 'clinics') {
+        schoolLayer.remove();
+        trainingLayer.remove();
+        clinicLayer.addTo(map);
+        map.fitBounds(L.latLngBounds(clinics.map(c => [c.lat, c.lng])), { padding: [30, 30] });
+      } else if (mode === 'training') {
+        schoolLayer.remove();
+        clinicLayer.remove();
+        trainingLayer.addTo(map);
+        map.fitBounds(L.latLngBounds(training.map(t => [t.lat, t.lng])), { padding: [80, 80] });
+      }
+    }
+  </script>
+</body>
+</html>
